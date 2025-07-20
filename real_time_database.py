@@ -324,8 +324,11 @@ class FirebaseRTDBManager:
 
 
     def get_listener_endpoints(self, nodes:list[str], metadata=False):
+        """
+        :return: end for all given nodes to listen to state changes
+        """
         return [
-            f"{self.db_url}/{nid}" + "/metadata" if metadata is True else None
+            f"{self.db_url}/{nid}" + "/metadata/status/" if metadata is True else None
             for nid in nodes
         ]
 
