@@ -339,9 +339,21 @@ class FirebaseRTDBManager:
             paths.append(path)
         return paths
 
+    def _fetch_g_data(self):
+        self.initial_data = {}
 
+        print("Fetch entire dir from FB")
+        data = self.get_data(path=f"/")
+        if data:
+            raw_data = data[0]
+            # todo filter out here session data and history -> (h eh bq)
+            for k, v in raw_data.items():
+                if k in ["session"] or k.startswith("H_"):
+                    continue
+                self.initial_data[k] = v
 
-
+            print(f"Data received from FB")
+            return self.initial_data
 
 if __name__ == "__main__":
     f = FirebaseRTDBManager("")
