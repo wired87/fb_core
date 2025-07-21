@@ -89,6 +89,15 @@ class FirebaseRTDBManager:
             fb_creds
         )
 
+    def path_exists(self, path: str) -> bool:
+        """
+        Checks if a path exists in the database.
+        """
+        try:
+            snapshot = db.reference(path).get()
+            return snapshot is not None
+        except Exception:
+            return False
 
     def upsert_data(self, path: str, data: dict):
         """
@@ -103,7 +112,12 @@ class FirebaseRTDBManager:
             True on success, False on failure.
         """
         try:
-            self.root_ref.update(data) # or set
+            path_exists = self.path_exists(path)
+            if path_exists:
+                self.root_ref.update(data)
+            else:
+                db.reference(path).set(data)
+
             logging.info(f"Successfully upserted data at path: {path}")
             return True
         except Exception as e:
