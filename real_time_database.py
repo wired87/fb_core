@@ -99,7 +99,7 @@ class FirebaseRTDBManager:
         except Exception:
             return False
 
-    def upsert_data(self, path: str, data: dict):
+    def upsert_data(self, path: str, data: dict, list_entry=False):
         """
         Inserts or updates data at the specified path.
         Equivalent to set(). If the path exists, it's overwritten.
@@ -114,7 +114,10 @@ class FirebaseRTDBManager:
         try:
             path_exists = self.path_exists(path)
             if path_exists:
-                self.root_ref.update(data)
+                if list_entry is True:
+                    self.root_ref.update(data)
+                else:
+                    self.push_list_item(path, data)
             else:
                 db.reference(path).set(data)
 
