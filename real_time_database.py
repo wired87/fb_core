@@ -93,17 +93,13 @@ class FirebaseRTDBManager:
             fb_creds
         )
 
-    def path_exists(self, path: str) -> bool:
-        """
-        Checks if a path exists in the database.
-        """
-        try:
-            snapshot = db.reference(path).get()
-            return snapshot is not None
-        except Exception:
-            return False
 
-    def upsert_data(self, path: str, data: dict, list_entry=False):
+    def upsert_data(
+            self,
+            path: str,
+            data: dict,
+            list_entry=False,
+    ):
         """
         Inserts or updates data at the specified path.
         Equivalent to set(). If the path exists, it's overwritten.
@@ -115,15 +111,15 @@ class FirebaseRTDBManager:
         Returns:
             True on success, False on failure.
         """
+        if path is not None:
+            ref = db.reference(path)
+        else:
+            ref = self.root_ref
         try:
-            path_exists = self.path_exists(path)
-            if path_exists:
-                if list_entry is True:
-                    self.root_ref.update(data)
-                else:
-                    self.push_list_item(path, data)
+            if list_entry is True:
+                ref.push(data)
             else:
-                db.reference(path).set(data)
+                ref.set(data)
 
             logging.info(f"Successfully upserted data at path: {path}")
             return True
@@ -131,20 +127,7 @@ class FirebaseRTDBManager:
             logging.error(f"Failed to upsert data at path {path}: {e}")
             return False
 
-    def upsert_batch(self, data, fb_dest=None):
-        if fb_dest is not None:
-            ref = db.reference(fb_dest)
-        else:
-            ref = self.root_ref
-        try:
-            print("ref")
-            ref.update(data)
-            logging.info(f"Successfully upserted data")
-            #time.sleep(10)
-            return True
-        except Exception as e:
-            logging.error(f"Failed to upsert data: {e}")
-            return False
+
 
 
     def push_list_item(self, path, item):
@@ -302,6 +285,7 @@ class FirebaseRTDBManager:
             G,
             fb_dest=None,
             testing=False,
+            list_entry=False,
     ):
 
         if testing is False:
@@ -341,7 +325,7 @@ class FirebaseRTDBManager:
                     }
                 )
             # print("updates", updates)
-        self.upsert_batch(updates, fb_dest)
+        self.upsert_data(fb_dest, data=updates, list_entry=list_entry)
 
 
     def get_listener_endpoints(self, nodes:list[str], metadata=False):
