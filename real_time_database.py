@@ -85,7 +85,7 @@ class FirebaseRTDBManager:
         try:
             fb_creds = json.loads(fb_creds)
         except Exception as e:
-            fb_creds = json.loads("./firebase_credentials.json")
+            fb_creds = json.loads("firebase_creds.json")
 
         self.creds = credentials.Certificate(
             fb_creds
