@@ -298,15 +298,14 @@ class FirebaseRTDBManager:
             for src, trgt in G.edges():
                 edge_attrs = G[src][trgt]
                 #print("edge_attrs", edge_attrs)
-                for key,value in edge_attrs.items():
-                    #print("Edge value", value)
+                #print("Edge value", value)
 
-                    path = f"edges/{src}_{value.get('rel')}_{trgt}"
-                    updates.update(
-                        {
-                            path: {k: v for k, v in value.items() if k not in ["id", "symbol"]}
-                        }
-                    )
+                path = f"edges/{src}_{edge_attrs.get('rel')}_{trgt}"
+                updates.update(
+                    {
+                        path: {k: v for k, v in edge_attrs.items() if k not in ["id", "symbol"]}
+                    }
+                )
             # print("updates", updates)
         else:
             updates = {
