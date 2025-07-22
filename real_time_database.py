@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import pprint
 import threading
 
 import firebase_admin
@@ -52,7 +53,7 @@ class FirebaseRTDBManager:
         print("Firebase url:", self.db_url)
 
         self._set_creds()
-
+        self.invalid_keys_detected = []
         try:
             if not firebase_admin._apps:
                  firebase_admin.initialize_app(self.creds, {
@@ -87,23 +88,20 @@ class FirebaseRTDBManager:
             fb_creds = json.loads(fb_creds)
         except Exception as e:
             LOGGER.info(f"Failed loading FIREBASE_CREDENTIALS from env (ERROR:{e}), trying directly from file")
-            with open("firebase_creds.json", "r", encoding="utf-8") as f:
+            path = r"C:\Users\wired\OneDrive\Desktop\BestBrain\firebase_creds.json" if os.name == "nt" else "firebase_creds.json"
+            with open(path, "r", encoding="utf-8") as f:
                 fb_creds = json.load(f)
         self.creds = credentials.Certificate(
             fb_creds
         )
 
-    def path_exists(self, path: str) -> bool:
-        """
-        Checks if a path exists in the database.
-        """
-        try:
-            snapshot = db.reference(path).get()
-            return snapshot is not None
-        except Exception:
-            return False
 
-    def upsert_data(self, path: str, data: dict, list_entry=False):
+    def upsert_data(
+            self,
+            path: str,
+            data: dict,
+            list_entry=False,
+    ):
         """
         Inserts or updates data at the specified path.
         Equivalent to set(). If the path exists, it's overwritten.
@@ -115,37 +113,18 @@ class FirebaseRTDBManager:
         Returns:
             True on success, False on failure.
         """
+
         try:
-            path_exists = self.path_exists(path)
-            if path_exists:
-                if list_entry is True:
-                    self.root_ref.update(data)
-                else:
-                    self.push_list_item(path, data)
+            if list_entry is True:
+                db.reference(path).push(data)
             else:
-                db.reference(path).set(data)
+                db.reference(path).update(data)
 
             logging.info(f"Successfully upserted data at path: {path}")
             return True
         except Exception as e:
             logging.error(f"Failed to upsert data at path {path}: {e}")
             return False
-
-    def upsert_batch(self, data, fb_dest=None):
-        if fb_dest is not None:
-            ref = db.reference(fb_dest)
-        else:
-            ref = self.root_ref
-        try:
-            print("ref")
-            ref.update(data)
-            logging.info(f"Successfully upserted data")
-            #time.sleep(10)
-            return True
-        except Exception as e:
-            logging.error(f"Failed to upsert data: {e}")
-            return False
-
 
     def push_list_item(self, path, item):
         ref = db.reference(path)
@@ -306,47 +285,60 @@ class FirebaseRTDBManager:
             self,
             G,
             fb_dest=None,
-            testing=False,
+            datastore=False
     ):
+        if datastore is False:
+            updates = {}
+            for nid, attrs in [(nid, attrs) for nid, attrs in G.nodes(data=True) if attrs.get("type") not in ["USERS"]]:
+                #new_item = self._check_keys(attrs)
 
-        if testing is False:
-            updates = {
-                f"{attrs.get('type')}/{nid}":
-                    {k: v for k, v in attrs.items()}
-                for nid, attrs in G.nodes(data=True) if attrs.get("type") not in ["USERS"]
-            }
+                path = f"{attrs.get('type')}/{nid}/"
+
+                #pprint.pp(update_item)
+                updates[path] = attrs
 
             for src, trgt in G.edges():
-                edge_attrs = G[src][trgt]
-                #print("edge_attrs", edge_attrs)
-                for key,value in edge_attrs.items():
-                    #print("Edge value", value)
+                if src is not None and trgt is not None:
+                    edge_attrs = G[src][trgt]
+                    type= edge_attrs.get("type")
+                    path = f"edges/{type}/"
+                    updates[path]=edge_attrs
 
-                    path = f"edges/{src}_{value.get('rel')}_{trgt}"
-                    updates.update(
-                        {
-                            path: {k: v for k, v in value.items() if k not in ["id", "symbol"]}
-                        }
-                    )
             # print("updates", updates)
+            print("self.invalid_keys_detected", self.invalid_keys_detected)
+
         else:
-            updates = {
-                f"{attrs.get('type')}/{nid}": {k: v for k, v in attrs.items()}
-                for nid, attrs in G.nodes(data=True) if attrs.get("type") not in ["USERS"]
-            }
+            updates = {}
+            """
+            Upsert all start ds entries as list with one entry            
+            """
+            for time_nid, attrs in [(time_nid, attrs) for time_nid, attrs in G.nodes(data=True) if attrs.get("type") not in ["USERS"]]:
+                nid = attrs.get("type")
+                type = attrs.get("base_type")
+                graph_type = attrs.get("graph_item")
+                if graph_type == "node" and type is not None:
+                    updates[f"{type}/{nid}/"] = attrs
+        self.upsert_data(fb_dest, data=updates, list_entry=datastore)
 
-            for src, trgt in G.edges():
-                edge_attrs = G[src][trgt]
-                print("edge_attrs", edge_attrs)
+    def _check_keys(self, attrs, exclude:list = None):
+        new_item = {}
+        for k, v in attrs.items():
+            # Exclude keys specified
+            if exclude is not None and isinstance(exclude, list):
+                if k in exclude:
+                    continue
+            for inv_char in ["/", "\\", ".", ",", ":", ";", "?", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "-",
+                             "+", "=", "{", "}", "[", "]", "|", "<", ">", "`", "~"]:
+                if inv_char in k:
+                    print("INVALID KEY:", k)
+                    self.invalid_keys_detected.append(k)
+                    k = k.replace(inv_char, "_")
+                elif len(k) == 0:
+                    continue
+                #print("Add", k, ":", v)
+                new_item[k] = v
+        return new_item
 
-                path = f"edges/{src}_{edge_attrs.get('rel')}_{trgt}"
-                updates.update(
-                    {
-                        path: {k: v for k, v in edge_attrs.items() if k not in ["symbol"]}
-                    }
-                )
-            # print("updates", updates)
-        self.upsert_batch(updates, fb_dest)
 
 
     def get_listener_endpoints(self, nodes:list[str], metadata=False):
@@ -383,7 +375,34 @@ class FirebaseRTDBManager:
 
 if __name__ == "__main__":
     f = FirebaseRTDBManager("")
+    """f.upsert_data(
+        path="users/rajtigesomnlhfyqzbvx/env/env_bare_rajtigesomnlhfyqzbvx_1YLVoI3vlbVPzwT9JJncrfMrU6jMjCcWdbFoHQXV/datastore/DOWN_QUARK_qfn_0/",
+        data={"hi": True},
+        list_entry=True
+    )"""
     f.delete_data(path="/")
 
 
 
+
+
+"""
+        else:
+            updates = {
+                f"{attrs.get('type')}/{nid}": {k: v for k, v in attrs.items()}
+                for nid, attrs in G.nodes(data=True) if attrs.get("type") not in ["USERS"]
+            }
+
+            for src, trgt in G.edges():
+                if src is not None and trgt is not None:
+                    edge_attrs = G[src][trgt]
+                    print("edge_attrs", edge_attrs)
+
+                    path = f"edges/{src}_{edge_attrs.get('rel')}_{trgt}"
+                    updates.update(
+                        {
+                            path: {k: v for k, v in edge_attrs.items() if k not in ["symbol"]}
+                        }
+                    )
+            # print("updates", updates)
+"""
