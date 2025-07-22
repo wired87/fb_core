@@ -82,8 +82,8 @@ class FirebaseRTDBManager:
 
     def _set_creds(self):
         fb_creds = os.environ.get("FIREBASE_CREDENTIALS")
-        if "{" in fb_creds:  # -> stringified fetched creds
-            fb_creds = json.loads(fb_creds)
+        #if "{" in fb_creds:  # -> stringified fetched creds
+        fb_creds = json.loads(fb_creds)
 
         self.creds = credentials.Certificate(
             fb_creds
