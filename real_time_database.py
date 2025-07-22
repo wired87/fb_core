@@ -209,7 +209,7 @@ class FirebaseRTDBManager:
             logging.error(f"Failed to delete data at path {path}: {e}")
             return False
 
-    def get_data(self, path: str):
+    def get_data(self, path: str or list):
         """
         Retrieves data from the specified path.
 
@@ -219,17 +219,22 @@ class FirebaseRTDBManager:
             The data at the path (as a dictionary or other Python type)
             or None if the path does not exist or on failure.
         """
+        if isinstance(path, str):
+            path = [path]
         try:
-            ref:Reference = self._get_ref(path)
-            data = ref.get(path)
-            if data is not None:
-                logging.info(f"Successfully retrieved data from path: {ref._pathurl}:")
-            else:
-                 logging.info(f"No data found at path: {path}")
-            #pprint.pp(data)
-            return data
+            sub_data = {}
+            for p in path:
+                ref:Reference = self._get_ref(p)
+                data = ref.get(p)
+                if data is not None:
+                    LOGGER.info(f"Successfully retrieved data from path: {ref._pathurl}:")
+                else:
+                     LOGGER.info(f"No data found at path: {path}")
+                #pprint.pp(data)
+                sub_data[p] = data
+            return sub_data
         except Exception as e:
-            logging.error(f"Failed to retrieve data from path {path}: {e}")
+            LOGGER.error(f"Failed to retrieve data from path {path}: {e}")
             return None
 
     def start_listener_thread(
@@ -366,19 +371,15 @@ class FirebaseRTDBManager:
     def _fetch_g_data(self):
         LOGGER.info("Fetching entire graph data from Firebase RTDB")
         self.initial_data = {}
-
+        paths = [
+            f"{sub}"
+            for sub in ALL_SUBS
+        ]
         print("Fetch entire dir from FB")
-        data = self.get_data(path=f"/")
+        data = self.get_data(path=paths)
         if data:
-            raw_data = data[0]
-            # todo filter out here session data and history -> (h eh bq)
-            for k, v in raw_data.items():
-                if k in ["session"] or k.startswith("H_"):
-                    continue
-                self.initial_data[k] = v
-
             print(f"Data received from FB")
-            return self.initial_data
+            return data
 
 if __name__ == "__main__":
     f = FirebaseRTDBManager("")
