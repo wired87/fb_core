@@ -14,6 +14,7 @@ from firebase_admin.db import Reference
 from joblib import delayed
 
 from qf_core_base.qf_utils.all_subs import ALL_SUBS
+from utils.logger import LOGGER
 
 load_dotenv()
 
@@ -85,8 +86,9 @@ class FirebaseRTDBManager:
         try:
             fb_creds = json.loads(fb_creds)
         except Exception as e:
-            fb_creds = json.loads(open("firebase_creds.json", "r"))
-
+            LOGGER.info(f"Failed loading FIREBASE_CREDENTIALS from env (ERROR:{e}), trying directly from file")
+            with open("firebase_creds.json", "r", encoding="utf-8") as f:
+                fb_creds = json.load(f)
         self.creds = credentials.Certificate(
             fb_creds
         )
@@ -362,6 +364,7 @@ class FirebaseRTDBManager:
         return paths
 
     def _fetch_g_data(self):
+        LOGGER.info("Fetching entire graph data from Firebase RTDB")
         self.initial_data = {}
 
         print("Fetch entire dir from FB")
