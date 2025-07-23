@@ -363,15 +363,22 @@ class FirebaseRTDBManager:
     def _fetch_g_data(self):
         LOGGER.info("Fetching entire graph data from Firebase RTDB")
         self.initial_data = {}
+
         paths = [
             f"{sub}"
             for sub in ALL_SUBS
         ]
+
         print("Fetch entire dir from FB")
         data = self.get_data(path=paths)
         if data:
+            if isinstance(data, tuple):
+                LOGGER.info("RECEIVED DATA AS TUPLE ")
+                data = data[0]
             print(f"Data received from FB")
             return data
+
+
 
 if __name__ == "__main__":
     f = FirebaseRTDBManager("")
