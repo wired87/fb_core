@@ -131,7 +131,33 @@ class FirebaseRTDBManager:
         ref.push(item)
         print(f"Neues Element erfolgreich hinzugefügt unter Schlüssel: {path}")
 
-
+    def get_init_env_tree(self, g, path):
+        print("Data received")
+        # load the graph with data
+        env_attrs = None
+        env_id = None
+        data = self.get_data(path=path)
+        if data:
+            for node_type, node_id in data.items():
+                for nid, attrs in node_id.items():
+                    if node_type == "edges":
+                        parts = nid.split("_")
+                        g.add_edge(
+                            parts[0],
+                            parts[1],
+                            attrs=attrs
+                        )
+                    elif node_type == "ENV":
+                        env_attrs = attrs
+                        env_id = nid
+                    else:
+                        g.add_node(
+                            dict(
+                                id=nid,
+                                **attrs
+                            )
+                        )
+        return g, env_id, env_attrs
 
 
     def update_data(self, path: str, data: dict):
@@ -258,38 +284,6 @@ class FirebaseRTDBManager:
         except Exception as e:
             print(f"Listener Thread {threading.current_thread().name}: FEHLER im Listener: {e}")
 
-    def get_init_env_tree(self, g, path):
-        print("Data received")
-        # load the graph with data
-        env_attrs = None
-        env_id = None
-        data = self.get_data(path=path)
-        if data:
-            for node_type, node_id in data.items():
-                for nid, attrs in node_id.items():
-                    if node_type.lower() == "edges":
-                        src = attrs.get("src")
-                        trgt = attrs.get("trgt")
-                        if trgt and src:
-                            g.add_edge(
-                                src,
-                                trgt,
-                                attrs=attrs
-                            )
-                        else:
-                            raise ValueError(f"EDGE {nid} has no src or trgt ({attrs})")
-
-                    elif node_type == "ENV":
-                        env_attrs = attrs
-                        env_id = nid
-                    else:
-                        g.add_node(
-                            dict(
-                                id=nid,
-                                **attrs
-                            )
-                        )
-        return g, env_id, env_attrs
 
     def upsert_firebase(
             self,
@@ -297,7 +291,6 @@ class FirebaseRTDBManager:
             fb_dest=None,
             datastore=False
     ):
-        LOGGER.info(f"Upsert G: {G} to FireBase")
         if datastore is False:
             updates = {}
             for nid, attrs in [(nid, attrs) for nid, attrs in G.nodes(data=True) if attrs.get("type") not in ["USERS"]]:
@@ -311,12 +304,10 @@ class FirebaseRTDBManager:
             for src, trgt in G.edges():
                 if src is not None and trgt is not None:
                     edge_attrs = G[src][trgt]
-                    eid = edge_attrs.get("id")
-                    if eid:
-                        path = f"edges/{eid}/"
-                        updates[path] = edge_attrs
-                    else:
-                        raise ValueError(f"Edge {src} -> {trgt} has no id field ({edge_attrs})")
+                    type= edge_attrs.get("type")
+                    path = f"edges/{type}/"
+                    updates[path]=edge_attrs
+
             # print("updates", updates)
             print("self.invalid_keys_detected", self.invalid_keys_detected)
 
@@ -379,7 +370,7 @@ class FirebaseRTDBManager:
 
         paths = [
             f"{sub}"
-            for sub in ALL_SUBS
+            for sub in [*ALL_SUBS, "QFN", "ENV", "edges"]
         ]
 
         print("Fetch entire dir from FB")
@@ -401,3 +392,25 @@ if __name__ == "__main__":
 
 
 
+
+
+"""
+        else:
+            updates = {
+                f"{attrs.get('type')}/{nid}": {k: v for k, v in attrs.items()}
+                for nid, attrs in G.nodes(data=True) if attrs.get("type") not in ["USERS"]
+            }
+
+            for src, trgt in G.edges():
+                if src is not None and trgt is not None:
+                    edge_attrs = G[src][trgt]
+                    print("edge_attrs", edge_attrs)
+
+                    path = f"edges/{src}_{edge_attrs.get('rel')}_{trgt}"
+                    updates.update(
+                        {
+                            path: {k: v for k, v in edge_attrs.items() if k not in ["symbol"]}
+                        }
+                    )
+            # print("updates", updates)
+"""
