@@ -183,7 +183,11 @@ class FirebaseRTDBManager:
                     LOGGER.info(f"Successfully retrieved data from path: {ref._pathurl}:")
                 else:
                      LOGGER.info(f"No data found at path: {path}")
-                #pprint.pp(data)
+
+                if isinstance(data, tuple):
+                    LOGGER.info("RECEIVED DATA AS TUPLE ")
+                    data = data[0]
+
                 sub_data[p] = data
             return sub_data
         except Exception as e:
@@ -381,9 +385,6 @@ class FirebaseRTDBManager:
         print("Fetch entire dir from FB")
         data = self.get_data(path=paths)
         if data:
-            if isinstance(data, tuple):
-                LOGGER.info("RECEIVED DATA AS TUPLE ")
-                data = data[0]
             print(f"Data received from FB")
             return data
 
