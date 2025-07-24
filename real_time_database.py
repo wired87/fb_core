@@ -258,7 +258,7 @@ class FirebaseRTDBManager:
             print(f"Listener Thread {threading.current_thread().name}: FEHLER im Listener: {e}")
 
 
-    def get_init_env_tree(self, g, path):
+    def build_G_from_data(self, g, path):
         print("Data received")
         # load the graph with data
         env_attrs = None
@@ -380,7 +380,7 @@ class FirebaseRTDBManager:
 
         paths = [
             f"{sub}"
-            for sub in [*ALL_SUBS, "QFN", "ENV", "edges"]
+            for sub in [*ALL_SUBS, "PIXEL", "ENV", "edges"]
         ]
 
         print("Fetch entire dir from FB")
