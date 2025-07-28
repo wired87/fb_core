@@ -11,6 +11,7 @@ from firebase_admin import db
 import logging # Good practice for backend applications
 
 from dotenv import load_dotenv
+from firebase_admin._sseclient import Event
 from firebase_admin.db import Reference
 from joblib import delayed
 
@@ -18,7 +19,7 @@ from qf_core_base.qf_utils.all_subs import ALL_SUBS
 from utils.logger import LOGGER
 
 load_dotenv()
-
+DB_URL = os.environ.get("FIREBASE_RTDB")
 
 # DS PATH             fb_dest=f"users/{self.user_id}/datastore/{self.envc_id}/",
 # G STATE PATH             fb_dest=f"users/{self.user_id}/env/{self.envc_id}/",
@@ -40,14 +41,13 @@ def _set_creds():
         fb_creds
     )
 def auth_fb(
-        db_url,
         base_path
 ):
     try:
         creds = _set_creds()
         if not firebase_admin._apps:
             firebase_admin.initialize_app(creds, {
-                'databaseURL': db_url
+                'databaseURL': DB_URL
             })
             logging.info("Firebase Admin SDK initialized successfully.")
 
@@ -79,13 +79,12 @@ class FirebaseRTDBManager:
             database_url: The URL of your Firebase Realtime Database (e.g., 'https://YOUR-PROJECT-ID-default-rtdb.europe-west1.firebaseio.com/').
         """
 
-        self.db_url = os.environ.get("FIREBASE_RTDB")
+        self.db_url = DB_URL
 
         print("Firebase url:", self.db_url)
 
         _set_creds()
         self.root_ref = auth_fb(
-            self.db_url,
             base_path
         )
         self.invalid_keys_detected = []
@@ -399,11 +398,15 @@ class FirebaseRTDBManager:
 
 
 def start_listener_thread(
+        db_root,
         db_path: list[str] or str,
         update_def,
         loop: asyncio.AbstractEventLoop or None = None,
         listener_type=None
     ):
+    auth_fb(
+        base_path=db_root
+    )
     # Listen to changes in firebase
     listener_thread = threading.Thread(
         target=_run_firebase_listener,
@@ -426,12 +429,11 @@ def _run_firebase_listener(db_path: str or list[str], update_def, loop: asyncio.
     if isinstance(db_path, str):
         db_path = [db_path]
 
-    print(f"Listener Thread {threading.current_thread().name}: Starte Listener für {len(db_path)} Pfade (0:{db_path[0]}")
+    print(f"Listener Thread: Starte Listener für {len(db_path)}")
 
     try:
-        def on_data_change(event):
-            print(
-                f"Datenänderung empfangen: {event.event_type} - {event.path}: Listener Thread {threading.current_thread().name}")
+        def on_data_change(event:Event):
+            print(f"Datenänderung empfangen: {event.event_type} -> {event.path} -")# {event.data}
 
             # Stellen Sie sicher, dass die Daten nicht None sind und verarbeiten Sie sie
             if event.data is not None:
@@ -445,21 +447,20 @@ def _run_firebase_listener(db_path: str or list[str], update_def, loop: asyncio.
                 if loop is not None:
                     loop.call_soon_threadsafe(
                         asyncio.create_task,  # Erstellt eine Task im Event Loop
-                          # Die Coroutine, die ausgeführt wird
                         update_def(update_payload)
                     )
                 #update_def(update_payload)
             else:
                 print(
-                    f"Listener Thread {threading.current_thread().name}: Datenänderung empfangen: Daten sind None.")
+                    f"Listener Thread Datenänderung empfangen: Daten sind None.")
 
         # Start listening
-        for path in db_path:
+        for path in db_path: # blockiert?
             db.reference(path).listen(on_data_change)
 
-        print(f"Listener Thread {threading.current_thread().name}: Listener für Pfad {db_path} beendet.")
+        print(f"Listener Thread Listener für Pfad {db_path} beendet.")
     except Exception as e:
-        print(f"Listener Thread {threading.current_thread().name}: FEHLER im Listener: {e}")
+        print(f"Listener Thread FEHLER im Listener: {e}")
 
 
 if __name__ == "__main__":
