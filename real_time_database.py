@@ -1,8 +1,8 @@
 import asyncio
 import json
 import os
-import pprint
 import threading
+from concurrent.futures import ThreadPoolExecutor
 
 import firebase_admin
 import joblib
@@ -426,19 +426,57 @@ def start_listener_thread(
         db_path: list[str] or str,
         update_def,
         loop: asyncio.AbstractEventLoop or None = None,
-        listener_type=None
+        listener_type=None,
     ):
+
     auth_fb(
         base_path=db_root
     )
+
+    if isinstance(db_path, str):
+        runnable = _run_firebase_listener
+    elif isinstance(db_path, list):
+        runnable = start_all_firebase_listeners
+    else:
+        print(f"Inv. db_path: {db_path}")
+        return
+
     # Listen to changes in firebase
     listener_thread = threading.Thread(
-        target=_run_firebase_listener,
+        target=runnable,
         args=(db_path, update_def, loop, listener_type),  # Übergabe des Pfades und des Event Loops
         name=f"FBListener-{db_path}",
         daemon=True  # Der Listener-Thread wird beendet, wenn der Hauptprozess endet
     )
     listener_thread.start()
+
+
+async def start_all_firebase_listeners(
+        db_paths: list[str],
+        update_def_function,
+        main_async_loop: asyncio.AbstractEventLoop,
+        listener_type=None
+):
+    num_paths = len(db_paths)
+    executor = ThreadPoolExecutor(max_workers=num_paths)
+
+    print(f"Starte {num_paths} Firebase Listener parallel...")
+
+    for path in db_paths:
+        # Reiche jeden Pfad einzeln an die Funktion für den Einzel-Listener weiter
+        executor.submit(
+            _run_firebase_listener,
+            path,
+            update_def_function,
+            main_async_loop,
+            listener_type,
+        )
+
+    print(f"Alle {num_paths} Listener-Threads wurden gestartet. Sie laufen jetzt im Hintergrund.")
+
+
+
+
 
 def _run_firebase_listener(db_path: str or list[str], update_def, loop: asyncio.AbstractEventLoop or None = None, listener_type="db_changes"): # loop: asyncio.AbstractEventLoop,
     """
@@ -482,7 +520,7 @@ def _run_firebase_listener(db_path: str or list[str], update_def, loop: asyncio.
         for path in db_path: # blockiert?
             db.reference(path).listen(on_data_change)
 
-        print(f"Listener Thread Listener für Pfad {db_path} beendet.")
+        print(f"Listener Thread Listener für {len(db_path)} Paths beendet.")
     except Exception as e:
         print(f"Listener Thread FEHLER im Listener: {e}")
 
