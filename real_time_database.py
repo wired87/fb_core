@@ -393,16 +393,17 @@ class FirebaseRTDBManager:
                 edge_paths.append(epath)
 
         if metadata is True:
-            meta_paths = []
-            for nid in id_map:
+            meta_paths = [f"{db_base}/metadata/"]
+            """for nid in id_map:
                 meta_path = f"{db_base}/metadata/{nid}"
-                meta_paths.append(meta_path)
-
-        return [
+                meta_paths.append(meta_path)"""
+        all_listener_paths = [
             *node_paths,
             *edge_paths,
             *meta_paths
         ]
+        print("Total listener paths:", len(all_listener_paths))
+        return all_listener_paths
 
     def _fetch_g_data(self):
         LOGGER.info("Fetching entire graph data from Firebase RTDB")
@@ -485,7 +486,8 @@ def _run_firebase_listener(db_path: str or list[str], update_def, loop: asyncio.
     except Exception as e:
         print(f"Listener Thread FEHLER im Listener: {e}")
 
-
+def reset_state():
+    return
 if __name__ == "__main__":
     f = FirebaseRTDBManager("")
     """f.upsert_data(
