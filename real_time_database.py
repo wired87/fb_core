@@ -37,14 +37,18 @@ def _set_creds():
         path = r"C:\Users\wired\OneDrive\Desktop\BestBrain\firebase_creds.json" if os.name == "nt" else "firebase_creds.json"
         with open(path, "r", encoding="utf-8") as f:
             fb_creds = json.load(f)
-    return credentials.Certificate(
-        fb_creds
-    )
+    return fb_creds
+
 def auth_fb(
-        base_path
+        base_path,
+        creds=None
 ):
     try:
-        creds = _set_creds()
+        if creds is None:
+            creds = _set_creds()
+        creds = credentials.Certificate(
+            creds
+        )
         if not firebase_admin._apps:
             firebase_admin.initialize_app(creds, {
                 'databaseURL': DB_URL
@@ -83,9 +87,10 @@ class FirebaseRTDBManager:
 
         print("Firebase url:", self.db_url)
 
-        _set_creds()
+        self.creds = _set_creds()
         self.root_ref = auth_fb(
-            base_path
+            base_path,
+            self.creds
         )
         self.invalid_keys_detected = []
 
@@ -371,15 +376,33 @@ class FirebaseRTDBManager:
             for nid in nodes
         ]
 
-    def _get_db_paths_from_G(self, G, db_base, metadata=False):
+    def _get_db_paths_from_G(self, G, id_map, db_base, metadata=False, edges=True):
         # get paths for each node to lsiten to
-        paths = []
+        node_paths = []
+        edge_paths = []
+        meta_paths = []
+
         for nid, attrs in [(nid, attrs) for nid, attrs in G.nodes(data=True) if attrs["type"] in ALL_SUBS]:
             path = f"{db_base}/{attrs['type']}/{nid}"
-            if metadata is True:
-                path += "/metadata"
-            paths.append(path)
-        return paths
+            node_paths.append(path)
+
+        if edges is True:
+            for src, trgt, attrs in G.edges(data=True):
+                eid = attrs.get("id")
+                epath = f"{db_base}/edges/{eid}"
+                edge_paths.append(epath)
+
+        if metadata is True:
+            meta_paths = []
+            for nid in id_map:
+                meta_path = f"{db_base}/metadata/{nid}"
+                meta_paths.append(meta_path)
+
+        return [
+            *node_paths,
+            *edge_paths,
+            *meta_paths
+        ]
 
     def _fetch_g_data(self):
         LOGGER.info("Fetching entire graph data from Firebase RTDB")
