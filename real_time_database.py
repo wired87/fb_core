@@ -1,20 +1,13 @@
-import asyncio
 import os
-import threading
-from concurrent.futures import ThreadPoolExecutor
 
 import firebase_admin
-import joblib
-from firebase_admin import credentials
 from firebase_admin import db
 import logging # Good practice for backend applications
 
 from dotenv import load_dotenv
-from firebase_admin._sseclient import Event
 from firebase_admin.db import Reference
-from joblib import delayed
 
-from auth import AuthManager
+from utils.auth import AuthManager
 from qf_core_base.qf_utils.all_subs import ALL_SUBS
 from utils.logger import LOGGER
 
