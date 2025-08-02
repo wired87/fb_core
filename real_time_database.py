@@ -343,7 +343,7 @@ class FirebaseRTDBManager:
                 graph_type = attrs.get("graph_item")
                 if graph_type == "node" and type is not None:
                     updates[f"{type}/{nid}/"] = attrs
-        self.upsert_data(fb_dest, data=updates, list_entry=datastore)
+        self.upsert_data(fb_dest, data=updates, list_entry=False)
 
 
     def _check_keys(self, attrs, exclude:list = None):
@@ -376,15 +376,19 @@ class FirebaseRTDBManager:
             for nid in nodes
         ]
 
-    def _get_db_paths_from_G(self, G, id_map, db_base, metadata=False, edges=True):
+    def _get_db_paths_from_G(self, G, id_map, db_base, metadata=False, edges=True, loggs=True):
         # get paths for each node to lsiten to
         node_paths = []
         edge_paths = []
         meta_paths = []
+        log_paths = []
 
+        # todo give
         for nid, attrs in [(nid, attrs) for nid, attrs in G.nodes(data=True) if attrs["type"] in ALL_SUBS]:
             path = f"{db_base}/{attrs['type']}/{nid}"
             node_paths.append(path)
+            if loggs is True:
+                log_paths.append(f"/logging/{nid}")
 
         if edges is True:
             for src, trgt, attrs in G.edges(data=True):
@@ -392,17 +396,21 @@ class FirebaseRTDBManager:
                 epath = f"{db_base}/edges/{eid}"
                 edge_paths.append(epath)
 
+
+
         if metadata is True:
             meta_paths = [f"{db_base}/metadata/"]
-            """for nid in id_map:
-                meta_path = f"{db_base}/metadata/{nid}"
-                meta_paths.append(meta_path)"""
-        all_listener_paths = [
-            *node_paths,
-            *edge_paths,
-            *meta_paths
-        ]
-        print("Total listener paths:", len(all_listener_paths))
+
+        all_listener_paths = {
+            "nodes": node_paths,
+            "edges": edge_paths,
+            "logs": log_paths,
+            "meta": meta_paths
+        }
+
+        for k, v in all_listener_paths.items():
+            print(f"{k} listener paths:", len(all_listener_paths))
+
         return all_listener_paths
 
     def _fetch_g_data(self):
