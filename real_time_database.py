@@ -1,5 +1,4 @@
 import asyncio
-import json
 import os
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -15,6 +14,7 @@ from firebase_admin._sseclient import Event
 from firebase_admin.db import Reference
 from joblib import delayed
 
+from auth import AuthManager
 from qf_core_base.qf_utils.all_subs import ALL_SUBS
 from utils.logger import LOGGER
 
@@ -28,44 +28,11 @@ DB_URL = os.environ.get("FIREBASE_RTDB")
 
 # todo alle ds werden in gleichen apth geuppt (keine extra sessions) (vorerst)
 
-def _set_creds():
-    fb_creds = os.environ.get("FIREBASE_CREDENTIALS")
-    try:
-        fb_creds = json.loads(fb_creds)
-    except Exception as e:
-        LOGGER.info(f"Failed loading FIREBASE_CREDENTIALS from env (ERROR:{e}), trying directly from file")
-        path = r"C:\Users\wired\OneDrive\Desktop\BestBrain\firebase_creds.json" if os.name == "nt" else "firebase_creds.json"
-        with open(path, "r", encoding="utf-8") as f:
-            fb_creds = json.load(f)
-    return fb_creds
 
-def auth_fb(
-        base_path,
-        creds=None
-):
-    try:
-        if creds is None:
-            creds = _set_creds()
-        creds = credentials.Certificate(
-            creds
-        )
-        if not firebase_admin._apps:
-            firebase_admin.initialize_app(creds, {
-                'databaseURL': DB_URL
-            })
-            logging.info("Firebase Admin SDK initialized successfully.")
 
-        root_ref = db.reference(base_path)
-        logging.info(f"Set FB root ref:{base_path}")
-        return root_ref
-    except FileNotFoundError:
-        logging.error(f"Service Account Key file not found.")
-        raise
-    except Exception as e:
-        logging.error(f"Failed to initialize Firebase Admin SDK: {e}")
-        raise
 
-class FirebaseRTDBManager:
+
+class FirebaseRTDBManager(AuthManager):
     """
     A class to manage interactions with Firebase Realtime Database
     from a Python backend using the Admin SDK.
@@ -83,15 +50,19 @@ class FirebaseRTDBManager:
             database_url: The URL of your Firebase Realtime Database (e.g., 'https://YOUR-PROJECT-ID-default-rtdb.europe-west1.firebaseio.com/').
         """
 
+        AuthManager.__init__(self, auth=["fb"])
         self.db_url = DB_URL
 
         print("Firebase url:", self.db_url)
 
-        self.creds = _set_creds()
-        self.root_ref = auth_fb(
-            base_path,
-            self.creds
-        )
+        if not firebase_admin._apps:
+            firebase_admin.initialize_app(self.creds["fb"], {
+                'databaseURL': DB_URL
+            })
+            logging.info("Firebase Admin SDK initialized successfully.")
+
+        self.root_ref = db.reference(base_path)
+
         self.invalid_keys_detected = []
 
 
@@ -187,121 +158,23 @@ class FirebaseRTDBManager:
         try:
             sub_data = {}
             for p in path:
+                print("Request data from", p)
                 ref:Reference = self._get_ref(p)
                 data = ref.get(p)
                 if data is not None:
-                    LOGGER.info(f"Successfully retrieved data from path: {ref._pathurl}:")
+                    print(f"Successfully retrieved data from path: {ref._pathurl}:")
                 else:
-                     LOGGER.info(f"No data found at path: {path}")
+                     print(f"No data found at path: {path}")
 
                 if isinstance(data, tuple):
-                    LOGGER.info("RECEIVED DATA AS TUPLE ")
+                    print("RECEIVED DATA AS TUPLE ")
                     data = data[0]
 
                 sub_data[p] = data
             return sub_data
         except Exception as e:
-            LOGGER.error(f"Failed to retrieve data from path {path}: {e}")
+            print(f"Failed to retrieve data from path {path}: {e}")
             return None
-
-    def start_listener_thread(
-            self,
-            db_path: list[str] or str,
-            update_def,
-            loop: asyncio.AbstractEventLoop or None = None,
-            listener_type=None
-        ):
-        # Listen to changes in firebase
-        self.listener_thread = threading.Thread(
-            target=self._run_firebase_listener,
-            args=(db_path, update_def, loop, listener_type),  # Übergabe des Pfades und des Event Loops
-            name=f"FBListener-{self.db_url}",
-            daemon=True  # Der Listener-Thread wird beendet, wenn der Hauptprozess endet
-        )
-        self.listener_thread.start()
-
-    def _run_firebase_listener(self, db_path: str or list[str], update_def, loop: asyncio.AbstractEventLoop or None = None, listener_type="db_changes"): # loop: asyncio.AbstractEventLoop,
-        """
-        Startet den blockierenden Firebase Realtime Database Listener.
-        Läuft in einem separaten Thread.
-
-        Args:
-            db_path: Der Pfad in der Datenbank, auf den gelauscht werden soll.
-            loop: Eine Referenz auf den asyncio Event Loop des Consumers.
-        """
-
-        if isinstance(db_path, str):
-            db_path = [db_path]
-
-        print(f"Listener Thread {threading.current_thread().name}: Starte Listener für {len(db_path)} Pfade (0:{db_path[0]}")
-
-        try:
-            def on_data_change(event):
-                print(
-                    f"Datenänderung empfangen: {event.event_type} - {event.path}: Listener Thread {threading.current_thread().name}")
-
-                # Stellen Sie sicher, dass die Daten nicht None sind und verarbeiten Sie sie
-                if event.data is not None:
-
-                    update_payload = {
-                        "type": listener_type,  # Oder ein anderer Typ für Updates
-                        "path": event.path,  # Der spezifische Pfad der Änderung
-                        "data": event.data  # Die geänderten Daten an diesem Pfad
-                    }
-                    # todo use
-                    if loop is not None:
-                        loop.call_soon_threadsafe(
-                            asyncio.create_task,  # Erstellt eine Task im Event Loop
-                            update_def(update_payload)  # Die Coroutine, die ausgeführt wird
-                        )
-                    else:
-                        joblib.Parallel(n_jobs=1)(delayed(update_def()(update_payload)))
-
-                else:
-                    print(
-                        f"Listener Thread {threading.current_thread().name}: Datenänderung empfangen: Daten sind None.")
-
-            # Start listening
-            for path in db_path:
-                db.reference(path).listen(on_data_change)
-
-            print(f"Listener Thread {threading.current_thread().name}: Listener für Pfad {db_path} beendet.")
-        except Exception as e:
-            print(f"Listener Thread {threading.current_thread().name}: FEHLER im Listener: {e}")
-
-
-    def build_G_from_data(self, g, path):
-        print("Data received")
-        # load the graph with data
-        env_attrs = None
-        env_id = None
-        data = self.get_data(path=path)
-        if data:
-            for node_type, node_id in data.items():
-                for nid, attrs in node_id.items():
-                    if node_type.lower() == "edges":
-                        src = attrs.get("src")
-                        trgt = attrs.get("trgt")
-                        if trgt and src:
-                            g.add_edge(
-                                src,
-                                trgt,
-                                attrs=attrs
-                            )
-                        else:
-                            raise ValueError(f"EDGE {nid} has no src or trgt ({attrs})")
-
-                    elif node_type == "ENV":
-                        env_attrs = attrs
-                        env_id = nid
-                    else:
-                        g.add_node(
-                            dict(
-                                id=nid,
-                                **attrs
-                            )
-                        )
-        return g, env_id, env_attrs
 
     def upsert_firebase(
             self,
@@ -428,112 +301,6 @@ class FirebaseRTDBManager:
             print(f"Data received from FB")
             return data
 
-
-def start_listener_thread(
-        db_root,
-        db_path: list[str] or str,
-        update_def,
-        loop: asyncio.AbstractEventLoop or None = None,
-        listener_type=None,
-    ):
-
-    auth_fb(
-        base_path=db_root
-    )
-
-    if isinstance(db_path, str):
-        runnable = _run_firebase_listener
-    elif isinstance(db_path, list):
-        runnable = start_all_firebase_listeners
-    else:
-        print(f"Inv. db_path: {db_path}")
-        return
-
-    # Listen to changes in firebase
-    listener_thread = threading.Thread(
-        target=runnable,
-        args=(db_path, update_def, loop, listener_type),  # Übergabe des Pfades und des Event Loops
-        name=f"FBListener-{db_path}",
-        daemon=True  # Der Listener-Thread wird beendet, wenn der Hauptprozess endet
-    )
-    listener_thread.start()
-
-
-async def start_all_firebase_listeners(
-        db_paths: list[str],
-        update_def_function,
-        main_async_loop: asyncio.AbstractEventLoop,
-        listener_type=None
-):
-    num_paths = len(db_paths)
-    executor = ThreadPoolExecutor(max_workers=num_paths)
-
-    print(f"Starte {num_paths} Firebase Listener parallel...")
-
-    for path in db_paths:
-        # Reiche jeden Pfad einzeln an die Funktion für den Einzel-Listener weiter
-        executor.submit(
-            _run_firebase_listener,
-            path,
-            update_def_function,
-            main_async_loop,
-            listener_type,
-        )
-
-    print(f"Alle {num_paths} Listener-Threads wurden gestartet. Sie laufen jetzt im Hintergrund.")
-
-
-
-
-
-def _run_firebase_listener(db_path: str or list[str], update_def, loop: asyncio.AbstractEventLoop or None = None, listener_type="db_changes"): # loop: asyncio.AbstractEventLoop,
-    """
-    Startet den blockierenden Firebase Realtime Database Listener.
-    Läuft in einem separaten Thread.
-
-    Args:
-        db_path: Der Pfad in der Datenbank, auf den gelauscht werden soll.
-        loop: Eine Referenz auf den asyncio Event Loop des Consumers.
-    """
-
-    if isinstance(db_path, str):
-        db_path = [db_path]
-
-    print(f"Listener Thread: Starte Listener für {len(db_path)}")
-
-    try:
-        def on_data_change(event:Event):
-            print(f"Datenänderung empfangen: {event.event_type} -> {event.path} -")# {event.data}
-
-            # Stellen Sie sicher, dass die Daten nicht None sind und verarbeiten Sie sie
-            if event.data is not None:
-
-                update_payload = {
-                    "type": listener_type,  # Oder ein anderer Typ für Updates
-                    "path": event.path,  # Der spezifische Pfad der Änderung
-                    "data": event.data  # Die geänderten Daten an diesem Pfad
-                }
-                # todo use
-                if loop is not None:
-                    loop.call_soon_threadsafe(
-                        asyncio.create_task,  # Erstellt eine Task im Event Loop
-                        update_def(update_payload)
-                    )
-                #update_def(update_payload)
-            else:
-                print(
-                    f"Listener Thread Datenänderung empfangen: Daten sind None.")
-
-        # Start listening
-        for path in db_path: # blockiert?
-            db.reference(path).listen(on_data_change)
-
-        print(f"Listener Thread Listener für {len(db_path)} Paths beendet.")
-    except Exception as e:
-        print(f"Listener Thread FEHLER im Listener: {e}")
-
-def reset_state():
-    return
 if __name__ == "__main__":
     f = FirebaseRTDBManager("")
     """f.upsert_data(
