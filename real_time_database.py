@@ -4,14 +4,17 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 
 import firebase_admin
-
+import joblib
+from firebase_admin import credentials
 from firebase_admin import db
 import logging # Good practice for backend applications
 
 from dotenv import load_dotenv
+from firebase_admin._sseclient import Event
 from firebase_admin.db import Reference
+from joblib import delayed
 
-from utils.auth import AuthManager
+from auth import AuthManager
 from qf_core_base.qf_utils.all_subs import ALL_SUBS
 from utils.logger import LOGGER
 
@@ -213,7 +216,7 @@ class FirebaseRTDBManager(AuthManager):
                 graph_type = attrs.get("graph_item")
                 if graph_type == "node" and type is not None:
                     updates[f"{type}/{nid}/"] = attrs
-        self.upsert_data(fb_dest, data=updates, list_entry=False)
+        self.upsert_data(fb_dest, data=updates, list_entry=datastore)
 
 
     def _check_keys(self, attrs, exclude:list = None):
@@ -246,19 +249,15 @@ class FirebaseRTDBManager(AuthManager):
             for nid in nodes
         ]
 
-    def _get_db_paths_from_G(self, G, id_map, db_base, metadata=False, edges=True, loggs=True):
+    def _get_db_paths_from_G(self, G, id_map, db_base, metadata=False, edges=True):
         # get paths for each node to lsiten to
         node_paths = []
         edge_paths = []
         meta_paths = []
-        log_paths = []
 
-        # todo give
         for nid, attrs in [(nid, attrs) for nid, attrs in G.nodes(data=True) if attrs["type"] in ALL_SUBS]:
             path = f"{db_base}/{attrs['type']}/{nid}"
             node_paths.append(path)
-            if loggs is True:
-                log_paths.append(f"/logging/{nid}")
 
         if edges is True:
             for src, trgt, attrs in G.edges(data=True):
@@ -266,21 +265,17 @@ class FirebaseRTDBManager(AuthManager):
                 epath = f"{db_base}/edges/{eid}"
                 edge_paths.append(epath)
 
-
-
         if metadata is True:
             meta_paths = [f"{db_base}/metadata/"]
-
-        all_listener_paths = {
-            "nodes": node_paths,
-            "edges": edge_paths,
-            "logs": log_paths,
-            "meta": meta_paths
-        }
-
-        for k, v in all_listener_paths.items():
-            print(f"{k} listener paths:", len(all_listener_paths))
-
+            """for nid in id_map:
+                meta_path = f"{db_base}/metadata/{nid}"
+                meta_paths.append(meta_path)"""
+        all_listener_paths = [
+            *node_paths,
+            *edge_paths,
+            *meta_paths
+        ]
+        print("Total listener paths:", len(all_listener_paths))
         return all_listener_paths
 
     def _fetch_g_data(self):
