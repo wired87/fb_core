@@ -23,11 +23,9 @@ class DBAdmin:
         """Changes state of ALL metadata entries"""
         upsert_data = {}
         data = self.db_manager.get_data(path=self.metadata_path)
-        #pprint.pp(data)
         ready = None
         for mid, data in data["metadata"].items():
             if state is None:
-
                 current_state = data["status"]["state"]
                 if current_state == "active":
                     new_state = "inactive"
@@ -43,16 +41,16 @@ class DBAdmin:
 
             upsert_data[f"{mid}/status/state/"] = new_state
 
-        pprint.pp(upsert_data)
+        #pprint.pp(upsert_data)
 
         self.db_manager.update_data(
             path=self.metadata_path,
             data=upsert_data
         )
-        self.db_manager.update_data(
+        """self.db_manager.update_data(
             path=self.states_path,
             data={"ready": ready}
-        )
+        )"""
 
 if __name__ == "__main__":
     admin = DBAdmin()
