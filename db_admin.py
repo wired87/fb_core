@@ -1,6 +1,4 @@
 import os
-import pprint
-
 from fb_core.real_time_database import FirebaseRTDBManager
 from qf_core_base import TEST_USER_ID, TEST_ENV_ID
 
