@@ -1,4 +1,6 @@
 import os
+import pprint
+
 import firebase_admin
 from firebase_admin import db
 import logging  # Good practice for backend applications
@@ -176,21 +178,25 @@ class FirebaseRTDBManager(AuthManager):
             updates = {}
             for nid, attrs in [(nid, attrs) for nid, attrs in G.nodes(data=True) if attrs.get("type") not in ["USERS"]]:
                 #new_item = self._check_keys(attrs)
-
                 path = f"{attrs.get('type')}/{nid}/"
-
                 #pprint.pp(update_item)
                 updates[path] = attrs
 
-            for src, trgt in G.edges():
+            for src, trgt, edge_attrs in G.edges(data=True):
                 if src is not None and trgt is not None:
-                    edge_attrs = G[src][trgt]
                     eid = edge_attrs.get("id")
                     if eid:
                         path = f"edges/{eid}/"
                         updates[path] = edge_attrs
                     else:
                         raise ValueError(f"Edge {src} -> {trgt} has no id field ({edge_attrs})")
+                else:
+                    raise ValueError(f"Edge {src} -> {trgt} has missing con field ({edge_attrs})")
+
+            for id, stuff in updates.items():
+                print(f"ID: {id} attrs")
+                pprint.pp(stuff)
+
             # print("updates", updates)
             print("self.invalid_keys_detected", self.invalid_keys_detected)
 
