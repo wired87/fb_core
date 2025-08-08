@@ -52,4 +52,4 @@ class DBAdmin:
 
 if __name__ == "__main__":
     admin = DBAdmin()
-    admin.change_state(state="active")
+    admin.change_state(state="inactive")

@@ -9,7 +9,6 @@ from firebase_admin.db import Reference
 
 from utils.auth import AuthManager
 from qf_core_base.qf_utils.all_subs import ALL_SUBS
-from utils.logger import LOGGER
 
 load_dotenv()
 DB_URL = os.environ.get("FIREBASE_RTDB")
@@ -20,9 +19,6 @@ DB_URL = os.environ.get("FIREBASE_RTDB")
 
 
 # todo alle ds werden in gleichen apth geuppt (keine extra sessions) (vorerst)
-
-
-
 
 
 class FirebaseRTDBManager(AuthManager):
@@ -96,7 +92,7 @@ class FirebaseRTDBManager(AuthManager):
             else:
                 db.reference(path).update(data)
 
-            logging.info(f"Successfully upserted data at path: {path}")
+            print(f"Successfully upserted data at path: {path}")
             return True
         except Exception as e:
             logging.error(f"Failed to upsert data at path {path}: {e}")
@@ -175,7 +171,7 @@ class FirebaseRTDBManager(AuthManager):
             fb_dest=None,
             datastore=False
     ):
-        LOGGER.info(f"Upsert G: {G} to FireBase")
+        print(f"Upsert G: {G} to FireBase")
         if datastore is False:
             updates = {}
             for nid, attrs in [(nid, attrs) for nid, attrs in G.nodes(data=True) if attrs.get("type") not in ["USERS"]]:
@@ -272,7 +268,7 @@ class FirebaseRTDBManager(AuthManager):
         return all_listener_paths
 
     def _fetch_g_data(self):
-        LOGGER.info("Fetching entire graph data from Firebase RTDB")
+        print("Fetching entire graph data from Firebase RTDB")
         self.initial_data = {}
 
         paths = [
@@ -285,6 +281,10 @@ class FirebaseRTDBManager(AuthManager):
         if data:
             print(f"Data received from FB")
             return data
+
+
+
+
 
 if __name__ == "__main__":
     f = FirebaseRTDBManager("")
