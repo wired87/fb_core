@@ -250,9 +250,11 @@ class FirebaseRTDBManager(AuthManager):
         edge_paths = []
         meta_paths = []
 
-        for nid, attrs in [(nid, attrs) for nid, attrs in G.nodes(data=True) if attrs["type"] in ALL_SUBS]:
+        for nid, attrs in [(nid, attrs) for nid, attrs in G.nodes(data=True) if attrs["type"] in [*ALL_SUBS, "PIXEL"]]:
             path = f"{db_base}/{attrs['type']}/{nid}"
+            log_paths = f"{db_base}/logs/{nid}"
             node_paths.append(path)
+            meta_paths.append(log_paths)
 
         if edges is True:
             for src, trgt, attrs in G.edges(data=True):
@@ -261,7 +263,10 @@ class FirebaseRTDBManager(AuthManager):
                 edge_paths.append(epath)
 
         if metadata is True:
-            meta_paths = [f"{db_base}/metadata/"]
+            meta_paths = [
+                f"{db_base}/metadata/"
+
+            ]
             """for nid in id_map:
                 meta_path = f"{db_base}/metadata/{nid}"
                 meta_paths.append(meta_path)"""
