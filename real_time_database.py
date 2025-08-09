@@ -92,7 +92,7 @@ class FirebaseRTDBManager(AuthManager):
             else:
                 db.reference(path).update(data)
 
-            print(f"Successfully upserted data at path: {path}")
+            print(f"Successfully upserted data")
             return True
         except Exception as e:
             logging.error(f"Failed to upsert data at path {path}: {e}")
