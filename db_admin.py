@@ -45,10 +45,6 @@ class DBAdmin:
             path=self.metadata_path,
             data=upsert_data
         )
-        """self.db_manager.update_data(
-            path=self.states_path,
-            data={"ready": ready}
-        )"""
 
 if __name__ == "__main__":
     admin = DBAdmin()
