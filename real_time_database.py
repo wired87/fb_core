@@ -95,7 +95,7 @@ class FirebaseRTDBManager(AuthManager):
             print(f"Successfully upserted data")
             return True
         except Exception as e:
-            logging.error(f"Failed to upsert data at path {path}: {e}")
+            print(f"Failed to upsert data at path {path}: {e}")
             return False
 
     def push_list_item(self, path, item):
