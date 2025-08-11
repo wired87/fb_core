@@ -103,6 +103,19 @@ class FirebaseRTDBManager(AuthManager):
         ref.push(item)
         print(f"Neues Element erfolgreich hinzugefügt unter Schlüssel: {path}")
 
+    def get_latest_entries(self, path):
+        """
+        Ruft die 30 neuesten Einträge aus einem RTDB-Verzeichnis ab.
+        """
+        ref = db.reference(path)
+
+        # Query erstellen: Sortieren nach Key und auf 30 begrenzen
+        query = ref.order_by_key().limit_to_last(30)
+
+        # Ausführen der Query
+        snapshot = query.get()
+
+        return snapshot
 
     def update_data(self, path: str, data: dict):
         try:
