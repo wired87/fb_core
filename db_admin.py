@@ -11,6 +11,7 @@ class DBAdmin:
         self.database = f"users/{self.user_id}/env/{self.env_id}"
         self.metadata_path = "metadata"
         self.states_path = "global_states"
+
         self.db_manager = FirebaseRTDBManager(
             database_url=os.environ.get("FIREBASE_RTDB"),
             base_path=self.database,
@@ -39,11 +40,17 @@ class DBAdmin:
 
             upsert_data[f"{mid}/status/state/"] = new_state
 
-        #pprint.pp(upsert_data)
-
         self.db_manager.update_data(
             path=self.metadata_path,
             data=upsert_data
+        )
+
+        print("Upsert glbal states")
+        global_data={"ready": ready}
+        global_path = f"{self.database}/{self.states_path}/"
+        self.db_manager.update_data(
+            path=global_path,
+            data=global_data
         )
 
 if __name__ == "__main__":
