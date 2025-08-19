@@ -1,11 +1,12 @@
 import os
+
+from app_utils import ENV_ID, USER_ID
 from fb_core.real_time_database import FirebaseRTDBManager
-from qf_core_base import TEST_USER_ID, TEST_ENV_ID
 
 
 class DBAdmin:
 
-    def __init__(self, user_id=TEST_USER_ID, env_id=TEST_ENV_ID):
+    def __init__(self, user_id, env_id):
         self.user_id = user_id
         self.env_id = env_id
         self.database = f"users/{self.user_id}/env/{self.env_id}"
@@ -53,6 +54,7 @@ class DBAdmin:
             data=global_data
         )
 
+
 if __name__ == "__main__":
-    admin = DBAdmin()
+    admin = DBAdmin(env_id=ENV_ID, user_id=USER_ID)
     admin.change_state(state="INACTIVE")

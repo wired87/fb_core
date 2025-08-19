@@ -51,7 +51,6 @@ class FirebaseRTDBManager(AuthManager):
             logging.info("Firebase Admin SDK initialized successfully.")
 
         self.root_ref = db.reference(base_path)
-
         self.invalid_keys_detected = []
 
 
