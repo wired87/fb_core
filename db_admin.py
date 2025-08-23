@@ -46,6 +46,12 @@ class DBAdmin:
             data=upsert_data
         )
 
+        if state is not None:
+            if state == "INACTIVE":
+                ready = False
+            elif state == "ACTIVE":
+                ready = True
+
         print("Upsert glbal states")
         global_data={"ready": ready}
         global_path = f"{self.database}/{self.states_path}/"
