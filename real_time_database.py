@@ -13,7 +13,7 @@ from qf_core_base.qf_utils.all_subs import ALL_SUBS
 from utils.logger import LOGGER
 
 load_dotenv()
-DB_URL = os.environ.get("FIREBASE_RTDB")
+DB_URL = os.environ.get("FIREBASE_RTDB", None)
 
 # DS PATH             fb_dest=f"users/{self.user_id}/datastore/{self.envc_id}/",
 # G STATE PATH             fb_dest=f"users/{self.user_id}/env/{self.envc_id}/",
@@ -35,7 +35,7 @@ class FirebaseRTDBManager(AuthManager):
     users/user_id/env/env_id/objects/qf/qfn_ids
     """
 
-    def __init__(self, base_path, database_url: str or None = None):
+    def __init__(self, base_path=None, database_url: str or None = None):
         """
         Initializes the Firebase Admin SDK and gets a database reference.
 
@@ -45,7 +45,7 @@ class FirebaseRTDBManager(AuthManager):
         """
 
         AuthManager.__init__(self, auth=["fb"])
-        self.db_url = DB_URL
+        self.db_url = database_url or DB_URL
         print("Firebase url:", self.db_url)
 
         if not firebase_admin._apps:
