@@ -1,8 +1,9 @@
 import os
+import pprint
 
 import firebase_admin
 from firebase_admin import db
-import logging # Good practice for backend applications
+import logging  # Good practice for backend applications
 
 from dotenv import load_dotenv
 from firebase_admin.db import Reference
@@ -11,7 +12,7 @@ from utils.auth import AuthManager
 from qf_core_base.qf_utils.all_subs import ALL_SUBS
 
 load_dotenv()
-DB_URL = os.environ.get("FIREBASE_RTDB")
+DB_URL = os.environ.get("FIREBASE_RTDB", None)
 
 # DS PATH             fb_dest=f"users/{self.user_id}/datastore/{self.envc_id}/",
 # G STATE PATH             fb_dest=f"users/{self.user_id}/env/{self.envc_id}/",
@@ -30,7 +31,7 @@ class FirebaseRTDBManager(AuthManager):
     users/user_id/env/env_id/objects/qf/qfn_ids
     """
 
-    def __init__(self, base_path, database_url: str or None = None):
+    def __init__(self, base_path=None, database_url: str or None = None):
         """
         Initializes the Firebase Admin SDK and gets a database reference.
 
@@ -40,8 +41,7 @@ class FirebaseRTDBManager(AuthManager):
         """
 
         AuthManager.__init__(self, auth=["fb"])
-        self.db_url = DB_URL
-
+        self.db_url = database_url or DB_URL
         print("Firebase url:", self.db_url)
 
         if not firebase_admin._apps:
@@ -62,8 +62,6 @@ class FirebaseRTDBManager(AuthManager):
         if path.startswith('/'):
              path = path[1:]
         return self.root_ref.child(path)
-
-
 
 
 
@@ -188,21 +186,25 @@ class FirebaseRTDBManager(AuthManager):
             updates = {}
             for nid, attrs in [(nid, attrs) for nid, attrs in G.nodes(data=True) if attrs.get("type") not in ["USERS"]]:
                 #new_item = self._check_keys(attrs)
-
                 path = f"{attrs.get('type')}/{nid}/"
-
                 #pprint.pp(update_item)
                 updates[path] = attrs
 
-            for src, trgt in G.edges():
+            for src, trgt, edge_attrs in G.edges(data=True):
                 if src is not None and trgt is not None:
-                    edge_attrs = G[src][trgt]
                     eid = edge_attrs.get("id")
                     if eid:
                         path = f"edges/{eid}/"
                         updates[path] = edge_attrs
                     else:
                         raise ValueError(f"Edge {src} -> {trgt} has no id field ({edge_attrs})")
+                else:
+                    raise ValueError(f"Edge {src} -> {trgt} has missing con field ({edge_attrs})")
+
+            for id, stuff in updates.items():
+                print(f"ID: {id} attrs")
+                pprint.pp(stuff)
+
             # print("updates", updates)
             print("self.invalid_keys_detected", self.invalid_keys_detected)
 
@@ -256,9 +258,11 @@ class FirebaseRTDBManager(AuthManager):
         edge_paths = []
         meta_paths = []
 
-        for nid, attrs in [(nid, attrs) for nid, attrs in G.nodes(data=True) if attrs["type"] in ALL_SUBS]:
+        for nid, attrs in [(nid, attrs) for nid, attrs in G.nodes(data=True) if attrs["type"] in [*ALL_SUBS, "PIXEL"]]:
             path = f"{db_base}/{attrs['type']}/{nid}"
+            log_paths = f"{db_base}/logs/{nid}"
             node_paths.append(path)
+            meta_paths.append(log_paths)
 
         if edges is True:
             for src, trgt, attrs in G.edges(data=True):
@@ -267,7 +271,10 @@ class FirebaseRTDBManager(AuthManager):
                 edge_paths.append(epath)
 
         if metadata is True:
-            meta_paths = [f"{db_base}/metadata/"]
+            meta_paths = [
+                f"{db_base}/metadata/"
+
+            ]
             """for nid in id_map:
                 meta_path = f"{db_base}/metadata/{nid}"
                 meta_paths.append(meta_path)"""
