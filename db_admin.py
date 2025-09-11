@@ -1,6 +1,6 @@
 import os
 
-from app_utils import ENV_ID, USER_ID
+from app_utils import ENV_ID, USER_ID, SESSION_ID
 from fb_core.real_time_database import FirebaseRTDBManager
 
 
@@ -9,20 +9,21 @@ class DBAdmin:
     def __init__(self, user_id, env_id):
         self.user_id = user_id
         self.env_id = env_id
+        self.session_id = SESSION_ID
         self.database = f"users/{self.user_id}/env/{self.env_id}"
         self.metadata_path = "metadata"
         self.states_path = "global_states"
+        self.world_cfg_path = f"cfg/{self.session_id}"
 
-        self.db_manager = FirebaseRTDBManager(
-            database_url=os.environ.get("FIREBASE_RTDB"),
-            base_path=self.database,
-        )
+        self.db_manager = FirebaseRTDBManager()
 
 
     def change_state(self, state=None):
         """Changes state of ALL metadata entries"""
         upsert_data = {}
-        data = self.db_manager.get_data(path=self.metadata_path)
+        data = self.db_manager.get_data(
+            path=f"{self.database}/{self.metadata_path}"
+        )
         ready = None
         for mid, data in data["metadata"].items():
             if state is None:
