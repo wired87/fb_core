@@ -9,7 +9,9 @@ import logging # Good practice for backend applications
 from dotenv import load_dotenv
 from firebase_admin.db import Reference
 
-from app_utils import SESSION_ID, ENV_ID, USER_ID
+
+
+from app_utils import  ENV_ID, USER_ID
 from utils.auth import AuthManager
 from qf_core_base.qf_utils.all_subs import ALL_SUBS
 
@@ -57,7 +59,8 @@ class FirebaseRTDBManager(AuthManager):
         self.invalid_keys_detected = []
 
     def set_root_ref(self, base_path):
-        self.root_ref = db.reference(base_path)
+        if isinstance(base_path, str):
+            self.root_ref = db.reference(base_path)
 
     def _get_ref(self, path: str):
         """Helper to get a database reference for a specific path."""
@@ -153,7 +156,7 @@ class FirebaseRTDBManager(AuthManager):
             print(f"Failed to delete data at path {path}: {e}")
             return False
 
-    def get_data(self, path: str or list):
+    def get_data(self, path: str or list, child=True):
         """
         Retrieves data from the specified path.
 
@@ -171,7 +174,6 @@ class FirebaseRTDBManager(AuthManager):
                 print("Request data from", p)
                 ref:Reference = db.reference(p)
 
-                print("ref", ref._pathurl)
                 data = ref.get()
                 if data is not None:
                     print(f"Successfully retrieved data from path: {ref._pathurl}:")
@@ -182,6 +184,10 @@ class FirebaseRTDBManager(AuthManager):
                     print("RECEIVED DATA AS TUPLE ")
                     data = data[0]
                 sub_data[p] = data
+
+            """if child is True:
+                sub_data = list(sub_data.values())[0]"""
+            #print(f"get_data result: {sub_data}")
             return sub_data
         except Exception as e:
             print(f"Failed to retrieve data from path {path}: {e}")
@@ -339,12 +345,13 @@ class FirebaseRTDBManager(AuthManager):
 
         return listener_paths
 
-    def _fetch_g_data(self):
+    def _fetch_g_data(self, db_root):
         print("Fetching entire graph data from Firebase RTDB")
         self.initial_data = {}
 
+        # Create paths
         paths = [
-            f"{sub}"
+            f"{db_root}/{sub}"
             for sub in [*ALL_SUBS, "PIXEL", "ENV", "edges"]
         ]
 
@@ -352,7 +359,22 @@ class FirebaseRTDBManager(AuthManager):
         data = self.get_data(path=paths)
         if data:
             print(f"Data received from FB")
+            data:dict = self.filter_raw_graph_data_keys(data)
             return data
+        print("no data could be fetched")
+
+
+
+    def filter_raw_graph_data_keys(self, data) -> dict:
+        converted_data = {}
+        for k, v in data.items():
+            if k.endswith("/"):
+                # rm last slash
+                k = k[:-1]
+            new_key = k.split("/")[-1]
+            converted_data[new_key] = v
+        return converted_data
+
 
 
 
