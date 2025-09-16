@@ -364,7 +364,6 @@ class FirebaseRTDBManager(AuthManager):
         print("no data could be fetched")
 
 
-
     def filter_raw_graph_data_keys(self, data) -> dict:
         converted_data = {}
         for k, v in data.items():
@@ -374,8 +373,6 @@ class FirebaseRTDBManager(AuthManager):
             new_key = k.split("/")[-1]
             converted_data[new_key] = v
         return converted_data
-
-
 
 
 if __name__ == "__main__":
