@@ -9,9 +9,7 @@ import logging # Good practice for backend applications
 from dotenv import load_dotenv
 from firebase_admin.db import Reference
 
-
-
-from app_utils import  ENV_ID, USER_ID
+from app_utils import ENV_ID, USER_ID
 from utils.auth import AuthManager
 from qf_core_base.qf_utils.all_subs import ALL_SUBS
 
@@ -55,7 +53,6 @@ class FirebaseRTDBManager(AuthManager):
             })
             logging.info("Firebase Admin SDK initialized successfully.")
 
-
         self.invalid_keys_detected = []
 
     def set_root_ref(self, base_path):
@@ -70,9 +67,6 @@ class FirebaseRTDBManager(AuthManager):
         if path.startswith('/'):
              path = path[1:]
         return self.root_ref.child(path)
-
-
-
 
 
     def upsert_data(
@@ -94,7 +88,6 @@ class FirebaseRTDBManager(AuthManager):
         """
 
         try:
-
             #print("Upsert data:")
             #pprint.pp(data)
 
@@ -102,8 +95,6 @@ class FirebaseRTDBManager(AuthManager):
                 db.reference(path).push(data)
             else:
                 db.reference(path).update(data)
-
-            #print(f"Successfully upserted data")
             return True
         except Exception as e:
             print(f"Failed to upsert data at path {path}: {e}")
@@ -188,6 +179,8 @@ class FirebaseRTDBManager(AuthManager):
             """if child is True:
                 sub_data = list(sub_data.values())[0]"""
             #print(f"get_data result: {sub_data}")
+            sub_data:dict = self.filter_raw_graph_data_keys(sub_data)
+            print("sub_data keys", sub_data.keys())
             return sub_data
         except Exception as e:
             print(f"Failed to retrieve data from path {path}: {e}")
@@ -322,23 +315,33 @@ class FirebaseRTDBManager(AuthManager):
             for nid in nodes
         ]
 
-    def _get_db_paths_from_G(self, G, db_base, edges=True):
+    def _get_db_paths_from_G(self, g, db_base, edges=True):
         # get paths for each node to lsiten to
         listener_paths = {
             "nodes": [],
             "edges": [],
             "meta": [],
+            "global": [],
+            "value": []
         }
 
-        for nid, attrs in [(nid, attrs) for nid, attrs in G.nodes(data=True) if attrs["type"] in [*ALL_SUBS, "ENV"]]:
-            path = f"{db_base}/{attrs['type']}/{nid}"
+        listener_paths["global"].append(
+            f"{db_base}/global_states/"
+        )
+
+        for nid, attrs in [(nid, attrs) for nid, attrs in g.G.nodes(data=True) if attrs["type"] in [*ALL_SUBS, "ENV"]]:
+            ntype = attrs['type']
+
+            path = f"{db_base}/{ntype}/{nid}"
             meta_path = f"{db_base}/metadata/{nid}"
+            value_path = f"{db_base}/{ntype}/{nid}/{g.qf_utils.get_field_key(ntype)}"
 
             listener_paths["nodes"].append(path)
             listener_paths["meta"].append(meta_path)
+            listener_paths["value"].append(value_path)
 
         if edges is True:
-            for src, trgt, attrs in G.edges(data=True):
+            for src, trgt, attrs in g.G.edges(data=True):
                 eid = attrs.get("id")
                 epath = f"{db_base}/edges/{eid}"
                 listener_paths["edges"].append(epath)
@@ -359,7 +362,6 @@ class FirebaseRTDBManager(AuthManager):
         data = self.get_data(path=paths)
         if data:
             print(f"Data received from FB")
-            data:dict = self.filter_raw_graph_data_keys(data)
             return data
         print("no data could be fetched")
 
@@ -371,8 +373,11 @@ class FirebaseRTDBManager(AuthManager):
                 # rm last slash
                 k = k[:-1]
             new_key = k.split("/")[-1]
+            print(f"Converted {k} -> {new_key}")
             converted_data[new_key] = v
         return converted_data
+
+
 
 
 if __name__ == "__main__":
