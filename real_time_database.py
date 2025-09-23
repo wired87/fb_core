@@ -87,18 +87,21 @@ class FirebaseRTDBManager(AuthManager):
             True on success, False on failure.
         """
 
-        try:
-            #print("Upsert data:")
-            #pprint.pp(data)
+        #try:
+        #print("Upsert data:")
+        #pprint.pp(data)
 
-            if list_entry is True:
-                db.reference(path).push(data)
-            else:
-                db.reference(path).update(data)
-            return True
+        if list_entry is True:
+            db.reference(path).push(data)
+        else:
+            db.reference(path).update(data)
+        """
         except Exception as e:
             print(f"Failed to upsert data at path {path}: {e}")
             return False
+        """
+        return True
+
 
     def push_list_item(self, path, item):
         ref = db.reference(path)
@@ -386,7 +389,7 @@ if __name__ == "__main__":
     path = f"users/{USER_ID}/env/{ENV_ID}/cfg/{ENV_ID}/world/"
     data = f.get_data(path=path)
     print("data")
-    pprint.pp(data)
+    #pprint.pp(data)
 
 
 
