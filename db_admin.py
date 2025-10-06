@@ -1,7 +1,7 @@
 import os
 
 from app_utils import ENV_ID, USER_ID, SESSION_ID
-from fb_core.real_time_database import FirebaseRTDBManager
+from fb_core.real_time_database import FBRTDBMgr
 
 
 class DBAdmin:
@@ -15,7 +15,7 @@ class DBAdmin:
         self.states_path = "global_states"
         self.world_cfg_path = f"cfg/{self.session_id}"
 
-        self.db_manager = FirebaseRTDBManager()
+        self.db_manager = FBRTDBMgr()
 
 
     def change_state(self, state=None):

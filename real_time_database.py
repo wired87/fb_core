@@ -24,7 +24,7 @@ DB_URL = os.environ.get("FIREBASE_RTDB")
 # todo alle ds werden in gleichen apth geuppt (keine extra sessions) (vorerst)
 
 
-class FirebaseRTDBManager(AuthManager):
+class FBRTDBMgr(AuthManager):
     """
     A class to manage interactions with Firebase Realtime Database
     from a Python backend using the Admin SDK.
@@ -384,7 +384,7 @@ class FirebaseRTDBManager(AuthManager):
 
 
 if __name__ == "__main__":
-    f = FirebaseRTDBManager()
+    f = FBRTDBMgr()
     #f.delete_data(path="/")
     path = f"users/{USER_ID}/env/{ENV_ID}/cfg/{ENV_ID}/world/"
     data = f.get_data(path=path)
