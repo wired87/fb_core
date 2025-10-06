@@ -179,11 +179,8 @@ class FBRTDBMgr(AuthManager):
                     data = data[0]
                 sub_data[p] = data
 
-            """if child is True:
-                sub_data = list(sub_data.values())[0]"""
-            #print(f"get_data result: {sub_data}")
             sub_data:dict = self.filter_raw_graph_data_keys(sub_data)
-            print("sub_data keys", sub_data.keys())
+
             return sub_data
         except Exception as e:
             print(f"Failed to retrieve data from path {path}: {e}")
