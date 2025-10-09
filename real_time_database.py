@@ -1,5 +1,4 @@
 import os
-import pprint
 import re
 
 import firebase_admin
@@ -16,13 +15,7 @@ from qf_core_base.qf_utils.all_subs import ALL_SUBS
 load_dotenv()
 DB_URL = os.environ.get("FIREBASE_RTDB")
 
-# DS PATH             fb_dest=f"users/{self.user_id}/datastore/{self.envc_id}/",
-# G STATE PATH             fb_dest=f"users/{self.user_id}/env/{self.envc_id}/",
-# GLOBAL STATE PATH f"{self.database}/global_states/"
-
-
 # todo alle ds werden in gleichen apth geuppt (keine extra sessions) (vorerst)
-
 
 class FBRTDBMgr(AuthManager):
     """
