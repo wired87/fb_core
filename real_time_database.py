@@ -9,8 +9,8 @@ from dotenv import load_dotenv
 from firebase_admin.db import Reference
 
 from app_utils import ENV_ID, USER_ID
+from qf_utils.all_subs import ALL_SUBS
 from utils.auth import AuthManager
-from qf_core_base.qf_utils.all_subs import ALL_SUBS
 
 load_dotenv()
 DB_URL = os.environ.get("FIREBASE_RTDB")
@@ -312,7 +312,7 @@ class FBRTDBMgr(AuthManager):
         # get paths for each node to lsiten to
         listener_paths = {
             "nodes": [],
-            "edges": [],
+            "EDGES": [],
             "meta": [],
             "global": [],
             "value": []
@@ -337,7 +337,7 @@ class FBRTDBMgr(AuthManager):
             for src, trgt, attrs in g.G.edges(data=True):
                 eid = attrs.get("id")
                 epath = f"{db_base}/edges/{eid}"
-                listener_paths["edges"].append(epath)
+                listener_paths["EDGES"].append(epath)
 
         return listener_paths
 
@@ -348,7 +348,7 @@ class FBRTDBMgr(AuthManager):
         # Create paths
         paths = [
             f"{db_root}/{sub}"
-            for sub in [*ALL_SUBS, "PIXEL", "ENV", "edges"]
+            for sub in [*ALL_SUBS, "PIXEL", "ENV", "EDGES"]
         ]
 
         print("Fetch entire dir from FB")
