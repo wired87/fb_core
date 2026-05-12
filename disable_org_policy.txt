@@ -1,0 +1,38 @@
+Welcome to Cloud Shell! Type "help" to get started, or type "gemini" to try prompting with Gemini CLI.
+Your Cloud Platform project in this session is set to gen-lang-client-0224925671.
+Use gcloud config set project [PROJECT_ID] to change to a different project.
+benedikt@cloudshell:~ (gen-lang-client-0224925671)$ gcloud organizations listgcloud organizations add-iam-policy-binding [ORG_ID] \
+>     --member="user:benedikt@clusterexpress.com" \
+>     --role="roles/orgpolicy.policyAdmin"^C
+benedikt@cloudshell:~ (gen-lang-client-0224925671)$ gcloud organizations add-iam-policy-binding [ORG_ID] \
+>     --member="user:benedikt@clusterexpress.com" \
+> ^C  --role="roles/orgpolicy.policyAdmin"
+benedikt@cloudshell:~ (gen-lang-client-0224925671)$ ^C
+benedikt@cloudshell:~ (gen-lang-client-0224925671)$ ^C
+benedikt@cloudshell:~ (gen-lang-client-0224925671)$ ^C
+benedikt@cloudshell:~ (gen-lang-client-0224925671)$ ^C
+benedikt@cloudshell:~ (gen-lang-client-0224925671)$ ^C
+benedikt@cloudshell:~ (gen-lang-client-0224925671)$ gcloud organizations add-iam-policy-binding [465687457057] \
+    --member="user:benedikt@clusterexpress.com" \
+    --role="roles/orgpolicy.policyAdmin"
+ERROR: (gcloud.organizations.add-iam-policy-binding) INVALID_ARGUMENT: Request contains an invalid argument.
+benedikt@cloudshell:~ (gen-lang-client-0224925671)$ gcloud organizations add-iam-policy-binding 465687457057     --member="user
+:benedikt@clusterexpress.com"     --role="roles/orgpolicy.policyAdmin"
+Updated IAM policy for organization [465687457057].
+bindings:
+- members:
+  - domain:clusterexpress.com
+  role: roles/billing.creator
+- members:
+  - user:benedikt@clusterexpress.com
+  role: roles/orgpolicy.policyAdmin
+- members:
+  - domain:clusterexpress.com
+  role: roles/resourcemanager.projectCreator
+etag: BwZRi50hL_I=
+version: 1
+benedikt@cloudshell:~ (gen-lang-client-0224925671)$ gcloud resource-manager org-policies disable-enforce iam.disableServiceAccountKeyCreation \
+>     --project=gen-lang-client-0224925671
+booleanPolicy: {}
+constraint: constraints/iam.disableServiceAccountKeyCreation
+etag: CJLRh9AGEJCdjQ8=
