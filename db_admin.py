@@ -81,7 +81,7 @@ class FirebaseAdmin:
     Provides a high-level interface for:
     - Managing user credit accounts
     - Recording user actions and history
-    - Managing output file metadata
+    - Managing output file_master metadata
     - Atomic credit operations
     """
 
@@ -469,7 +469,7 @@ class FirebaseAdmin:
         
         Args:
             run_id: Run identifier
-            files: List of file dicts with name, mime_type, size_bytes, etc.
+            files: List of file_master dicts with name, mime_type, size_bytes, etc.
             
         Returns:
             True if successful
@@ -554,3 +554,81 @@ class FirebaseAdmin:
         except Exception as error:
             logger.warning("Failed to record transaction for %s: %s", self.user_id, error)
             return False
+
+
+def resolve_billing_user_id(
+    uid: Optional[str] = None,
+    email: Optional[str] = None,
+    env_id: str = "default",
+) -> Optional[str]:
+    """Resolve stable billing key from JWT uid or normalized email."""
+    # prefer explicit uid from JWT / Django public_uid
+    if uid and str(uid).strip():
+        return str(uid).strip()
+    # fallback: map email to Firebase Auth uid when RTDB is available
+    email_norm = _normalize_email(email)
+    if not email_norm:
+        return None
+    fb_uid = _ensure_user_exists_in_auth(email_norm)
+    return fb_uid or email_norm
+
+
+def sync_user_session(
+    billing_key: str,
+    *,
+    email: Optional[str] = None,
+    display_name: Optional[str] = None,
+    source: str = "django",
+    action: str = "auth.session",
+    env_id: str = "default",
+) -> bool:
+    """Ensure RTDB user spaces and record auth/session activity."""
+    # per-user FirebaseAdmin scoped to env
+    admin = FirebaseAdmin(billing_key, env_id=env_id)
+    admin.ensure_user_spaces()
+    # profile metadata for billing dashboards
+    profile_payload = {
+        "email": email,
+        "display_name": display_name,
+        "source": source,
+        "last_action": action,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if admin.db_manager is not None:
+        admin.db_manager.update_data(
+            f"{admin.database}/profile",
+            {key: value for key, value in profile_payload.items() if value is not None},
+        )
+    # history trail mirrors accounts auth_views usage
+    admin.record_history_event(
+        action=action,
+        status="ok",
+        details={"source": source, "email": email},
+    )
+    return True
+
+
+def record_purchase_event(
+    billing_key: str,
+    *,
+    credits: int,
+    operation_id: str,
+    source: str = "stripe",
+    details: Optional[Dict[str, Any]] = None,
+    env_id: str = "default",
+) -> Dict[str, Any]:
+    """Atomically add credits and record purchase in RTDB history."""
+    # credit mutation via FirebaseAdmin atomic helper
+    admin = FirebaseAdmin(billing_key, env_id=env_id)
+    result = admin.add_credits_atomic(credits, operation_id)
+    # purchase audit event
+    event_details = {"source": source, "credits": credits}
+    if details and isinstance(details, dict):
+        event_details.update(details)
+    admin.record_history_event(
+        action="billing.purchase",
+        status="ok",
+        details=event_details,
+        request_id=operation_id,
+    )
+    return result
